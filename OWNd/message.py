@@ -1,4 +1,4 @@
-""" This module contains OpenWebNet messages definition """  # pylint: disable=too-many-lines
+"""This module contains OpenWebNet messages definition"""  # pylint: disable=too-many-lines
 
 from __future__ import annotations
 
@@ -648,6 +648,7 @@ class OWNHeatingEvent(OWNEvent):
         self._mode_name = None
         self._set_temperature = None
         self._local_offset = None
+        self._knob_pos = None
         self._local_set_temperature = None
         self._measured_temperature = None
         self._secondary_temperature = None
@@ -772,23 +773,24 @@ class OWNHeatingEvent(OWNEvent):
 
         elif self._dimension == 13:  # Local offset
             self._type = MESSAGE_TYPE_LOCAL_OFFSET
-            if (
-                self._dimension_value[0] == "0"
-                or self._dimension_value[0] == "00"
-                or self._dimension_value[0] == "4"
-                or self._dimension_value[0] == "5"
-                or self._dimension_value[0] == "6"
-                or self._dimension_value[0] == "7"
-                or self._dimension_value[0] == "8"
-            ):
-                self._local_offset = 0
+            if self._dimension_value[0] == "0" or self._dimension_value[0] == "00":
+                self._knob_pos = "0"
+            elif self._dimension_value[0] == "4":
+                self._knob_pos = "OFF"
+            elif self._dimension_value[0] == "5":
+                self._knob_pos = "*"
             elif self._dimension_value[0].startswith("0"):
-                self._local_offset = int(f"{self._dimension_value[0][1:]}")
+                self._knob_pos = "+" + self._dimension_value[0][1:]
             else:
-                self._local_offset = -int(f"{self._dimension_value[0][1:]}")
-            self._human_readable_log = (
-                f"Zone {self._zone}'s local offset is set to {self._local_offset}°C."
-            )
+                self._knob_pos = "-" + self._dimension_value[0][1:]
+            log_string = f"Zone {self._zone}'s local offset is set to {self._knob_pos}"
+            if self._dimension_value[0] == "4" or self._dimension_value[0] == "5":
+                self._local_offset = 0
+                log_string += "."
+            else:
+                self._local_offset = int(self._knob_pos)
+                log_string += "°C."
+            self._human_readable_log = log_string
 
         elif self._dimension == 14:  # Set temperature
             self._type = MESSAGE_TYPE_TARGET_TEMPERATURE
@@ -958,6 +960,10 @@ class OWNHeatingEvent(OWNEvent):
     @property
     def local_offset(self) -> int:
         return self._local_offset
+
+    @property
+    def knob_pos(self) -> str:
+        return self._knob_pos
 
     @property
     def local_set_temperature(self) -> float:
